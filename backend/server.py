@@ -119,6 +119,10 @@ async def create_employee(employee: EmployeeCreate):
 async def get_employees():
     try:
         employees = await db.employees.find().to_list(1000)
+        # Ensure all employees have createdAt field
+        for emp in employees:
+            if 'createdAt' not in emp:
+                emp['createdAt'] = datetime.utcnow()
         return [EmployeeResponse(**serialize_doc(emp)) for emp in employees]
     except Exception as e:
         logger.error(f"Error fetching employees: {str(e)}")
