@@ -440,15 +440,25 @@ async def recognize_face(request: FaceRecognitionRequest):
         
         # Get last attendance to determine next action
         employee_id = str(matched_employee["_id"])
+        
+        # Check if this is the first entry of the day
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        
         last_attendance = await db.attendance.find_one(
-            {"employeeId": employee_id},
+            {
+                "employeeId": employee_id,
+                "timestamp": {"$gte": today_start}
+            },
             sort=[("timestamp", -1)]
         )
         
         # Determine attendance type
-        attendance_type = "in"
-        if last_attendance and last_attendance.get("type") == "in":
-            attendance_type = "out"
+        # First entry of the day is always "in"
+        if not last_attendance:
+            attendance_type = "in"
+        else:
+            # Toggle between in and out
+            attendance_type = "out" if last_attendance.get("type") == "in" else "in"
         
         # Record attendance
         attendance_dict = {
