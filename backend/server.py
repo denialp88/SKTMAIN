@@ -224,7 +224,6 @@ class AttendanceResponse(BaseModel):
     facePhoto: Optional[str] = None
 
 class FaceRecognitionRequest(BaseModel):
-    faceDescriptor: List[float]
     facePhoto: str  # base64 encoded photo from kiosk
 
 class FaceRecognitionResponse(BaseModel):
