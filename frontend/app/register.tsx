@@ -76,9 +76,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      // Load face-api models and generate face descriptor
-      const faceDescriptor = await generateFaceDescriptor(facePhoto);
-
+      // Send to backend - it will extract real face descriptor
       const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/employees`, {
         method: 'POST',
         headers: {
@@ -87,20 +85,20 @@ export default function Register() {
         body: JSON.stringify({
           ...formData,
           facePhoto,
-          faceDescriptor,
         }),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        Alert.alert('Success', 'Employee registered successfully!', [
+        Alert.alert('Success', 'Employee registered successfully with face recognition!', [
           {
             text: 'OK',
             onPress: () => router.back(),
           },
         ]);
       } else {
-        const error = await response.json();
-        Alert.alert('Error', error.detail || 'Failed to register employee');
+        Alert.alert('Error', data.detail || 'Failed to register employee');
       }
     } catch (error) {
       console.error('Error registering employee:', error);
@@ -108,15 +106,6 @@ export default function Register() {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Generate face descriptor from base64 image
-  const generateFaceDescriptor = async (base64Image: string): Promise<number[]> => {
-    // For now, return a dummy descriptor
-    // In production, you would use face-api.js to generate real descriptors
-    // This will be implemented in the next phase
-    const descriptor = Array.from({ length: 128 }, () => Math.random());
-    return descriptor;
   };
 
   if (showCamera) {
