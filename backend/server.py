@@ -106,6 +106,7 @@ def serialize_doc(doc):
 async def create_employee(employee: EmployeeCreate):
     try:
         employee_dict = employee.dict()
+        employee_dict["createdAt"] = datetime.utcnow()
         result = await db.employees.insert_one(employee_dict)
         employee_dict["id"] = str(result.inserted_id)
         logger.info(f"Employee created: {employee_dict['name']}")
