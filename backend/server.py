@@ -460,8 +460,8 @@ async def recognize_face(request: FaceRecognitionRequest):
         }
         await db.attendance.insert_one(attendance_dict)
         
-        confidence = max(0, min(100, (1 - min_distance / threshold) * 100))
-        logger.info(f"Face recognized: {matched_employee['name']} - Punch {attendance_type} (distance: {min_distance:.2f}, confidence: {confidence:.1f}%)")
+        confidence = max(0, min(100, (1 - min_distance / RECOGNITION_THRESHOLD) * 100))
+        logger.info(f"Face recognized: {matched_employee['name']} - Punch {attendance_type} (distance: {min_distance:.2f}, confidence: {confidence:.1f}%) using {FACE_MODEL}")
         
         return FaceRecognitionResponse(
             recognized=True,
@@ -474,6 +474,10 @@ async def recognize_face(request: FaceRecognitionRequest):
     except Exception as e:
         logger.error(f"Error in face recognition: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        # Clean up temporary file
+        if temp_file and os.path.exists(temp_file):
+            os.unlink(temp_file)
 
 @api_router.get("/")
 async def root():
