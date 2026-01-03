@@ -243,43 +243,48 @@ def serialize_doc(doc):
 # Employee Routes
 @api_router.post("/employees", response_model=EmployeeResponse)
 async def create_employee(employee: EmployeeCreate):
+    temp_file = None
     try:
         employee_dict = employee.dict()
         employee_dict["createdAt"] = datetime.utcnow()
         
-        # Extract real face descriptor if facePhoto is provided
+        # Extract real face embedding if facePhoto is provided
         if employee_dict.get("facePhoto"):
             try:
-                # Convert base64 to image
-                image = base64_to_image(employee_dict["facePhoto"])
+                # Convert base64 to temporary file
+                temp_file = base64_to_temp_file(employee_dict["facePhoto"])
                 
-                # Detect face
-                faces = detect_face(image)
+                # Check image quality with liveness
+                liveness_ok, liveness_msg = verify_faces_with_liveness(temp_file)
+                if not liveness_ok:
+                    raise HTTPException(status_code=400, detail=liveness_msg)
                 
-                if len(faces) == 0:
-                    raise HTTPException(status_code=400, detail="No face detected in image. Please ensure face is clearly visible.")
+                # Check image quality
+                quality_ok, quality_msg = check_image_quality(temp_file)
+                if not quality_ok:
+                    raise HTTPException(status_code=400, detail=quality_msg)
                 
-                if len(faces) > 1:
-                    raise HTTPException(status_code=400, detail="Multiple faces detected. Please use image with single face.")
+                # Extract face embedding using DeepFace
+                embedding = extract_face_embedding(temp_file)
                 
-                # Extract face descriptor from the detected face
-                face_rect = faces[0]
-                descriptor = extract_face_descriptor(image, face_rect)
+                # Store the real embedding
+                employee_dict["faceDescriptor"] = embedding
                 
-                # Store the real descriptor
-                employee_dict["faceDescriptor"] = descriptor
-                
-                logger.info(f"Successfully extracted face descriptor with {len(descriptor)} features")
+                logger.info(f"Successfully extracted face embedding with {len(embedding)} features using {FACE_MODEL}")
                 
             except HTTPException:
                 raise
             except Exception as e:
                 logger.error(f"Error processing face photo: {str(e)}")
                 raise HTTPException(status_code=400, detail=f"Failed to process face photo: {str(e)}")
+            finally:
+                # Clean up temporary file
+                if temp_file and os.path.exists(temp_file):
+                    os.unlink(temp_file)
         
         result = await db.employees.insert_one(employee_dict)
         employee_dict["id"] = str(result.inserted_id)
-        logger.info(f"Employee created: {employee_dict['name']}")
+        logger.info(f"Employee created: {employee_dict['name']} with high-quality face recognition")
         return EmployeeResponse(**employee_dict)
     except HTTPException:
         raise
