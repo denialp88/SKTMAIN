@@ -36,6 +36,115 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Load OpenCV face detector (Haar Cascade)
+face_cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+face_cascade = cv2.CascadeClassifier(face_cascade_path)
+
+def base64_to_image(base64_string):
+    """Convert base64 string to OpenCV image"""
+    try:
+        # Remove data URL prefix if present
+        if ',' in base64_string:
+            base64_string = base64_string.split(',')[1]
+        
+        # Decode base64
+        image_data = base64.b64decode(base64_string)
+        
+        # Convert to PIL Image
+        pil_image = Image.open(io.BytesIO(image_data))
+        
+        # Convert to RGB if necessary
+        if pil_image.mode != 'RGB':
+            pil_image = pil_image.convert('RGB')
+        
+        # Convert to numpy array (OpenCV format)
+        image = np.array(pil_image)
+        
+        # Convert RGB to BGR for OpenCV
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        
+        return image
+    except Exception as e:
+        logger.error(f"Error converting base64 to image: {str(e)}")
+        raise
+
+def detect_face(image):
+    """Detect face in image using OpenCV Haar Cascade"""
+    try:
+        # Convert to grayscale
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        
+        # Detect faces
+        faces = face_cascade.detectMultiScale(
+            gray,
+            scaleFactor=1.1,
+            minNeighbors=5,
+            minSize=(100, 100),
+            flags=cv2.CASCADE_SCALE_IMAGE
+        )
+        
+        return faces
+    except Exception as e:
+        logger.error(f"Error detecting face: {str(e)}")
+        raise
+
+def extract_face_descriptor(image, face_rect):
+    """Extract face descriptor using histogram of oriented gradients (HOG) features"""
+    try:
+        x, y, w, h = face_rect
+        
+        # Extract face region with some padding
+        padding = int(w * 0.1)
+        face_roi = image[
+            max(0, y-padding):min(image.shape[0], y+h+padding),
+            max(0, x-padding):min(image.shape[1], x+w+padding)
+        ]
+        
+        if face_roi.size == 0:
+            raise ValueError("Invalid face region")
+        
+        # Resize face to standard size (128x128)
+        face_resized = cv2.resize(face_roi, (128, 128))
+        
+        # Convert to grayscale
+        face_gray = cv2.cvtColor(face_resized, cv2.COLOR_BGR2GRAY)
+        
+        # Apply histogram equalization for better feature extraction
+        face_equalized = cv2.equalizeHist(face_gray)
+        
+        # Compute HOG features
+        win_size = (128, 128)
+        block_size = (16, 16)
+        block_stride = (8, 8)
+        cell_size = (8, 8)
+        nbins = 9
+        
+        hog = cv2.HOGDescriptor(win_size, block_size, block_stride, cell_size, nbins)
+        hog_features = hog.compute(face_equalized)
+        
+        # Flatten and normalize
+        descriptor = hog_features.flatten()
+        descriptor = descriptor / (np.linalg.norm(descriptor) + 1e-7)  # Normalize
+        
+        return descriptor.tolist()
+    except Exception as e:
+        logger.error(f"Error extracting face descriptor: {str(e)}")
+        raise
+
+def compare_descriptors(desc1, desc2):
+    """Compare two face descriptors using Euclidean distance"""
+    try:
+        desc1_array = np.array(desc1)
+        desc2_array = np.array(desc2)
+        
+        # Calculate Euclidean distance
+        distance = np.linalg.norm(desc1_array - desc2_array)
+        
+        return float(distance)
+    except Exception as e:
+        logger.error(f"Error comparing descriptors: {str(e)}")
+        raise
+
 # Define Models
 class Employee(BaseModel):
     id: Optional[str] = None
