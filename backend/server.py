@@ -366,30 +366,42 @@ async def get_employee_attendance(employee_id: str):
 # Face Recognition Route
 @api_router.post("/attendance/recognize", response_model=FaceRecognitionResponse)
 async def recognize_face(request: FaceRecognitionRequest):
+    temp_file = None
     try:
-        # Convert base64 image to OpenCV format
-        image = base64_to_image(request.facePhoto)
+        # Convert base64 to temporary file
+        temp_file = base64_to_temp_file(request.facePhoto)
         
-        # Detect face in the probe image
-        faces = detect_face(image)
-        
-        if len(faces) == 0:
+        # Check image quality with liveness
+        liveness_ok, liveness_msg = verify_faces_with_liveness(temp_file)
+        if not liveness_ok:
             return FaceRecognitionResponse(
                 recognized=False,
-                message="No face detected. Please position your face clearly in front of the camera."
+                message=liveness_msg
             )
         
-        if len(faces) > 1:
+        # Check image quality
+        quality_ok, quality_msg = check_image_quality(temp_file)
+        if not quality_ok:
             return FaceRecognitionResponse(
                 recognized=False,
-                message="Multiple faces detected. Please ensure only one person is in frame."
+                message=quality_msg
             )
         
-        # Extract descriptor from detected face
-        face_rect = faces[0]
-        probe_descriptor = extract_face_descriptor(image, face_rect)
-        
-        logger.info(f"Extracted probe face descriptor with {len(probe_descriptor)} features")
+        # Extract face embedding using DeepFace
+        try:
+            probe_embedding = extract_face_embedding(temp_file)
+            logger.info(f"Extracted probe face embedding with {len(probe_embedding)} features using {FACE_MODEL}")
+        except Exception as e:
+            if "Face could not be detected" in str(e):
+                return FaceRecognitionResponse(
+                    recognized=False,
+                    message="No face detected. Please position your face clearly in front of the camera."
+                )
+            else:
+                return FaceRecognitionResponse(
+                    recognized=False,
+                    message=f"Face processing failed: {str(e)}"
+                )
         
         # Get all employees with face descriptors
         employees = await db.employees.find({"faceDescriptor": {"$exists": True, "$ne": None}}).to_list(1000)
@@ -400,21 +412,20 @@ async def recognize_face(request: FaceRecognitionRequest):
                 message="No registered employees found. Please register first."
             )
         
-        # Compare with all stored descriptors using real descriptor comparison
+        # Compare with all stored embeddings using DeepFace comparison
         matched_employee = None
         min_distance = float('inf')
-        threshold = 1.5  # HOG-based threshold (lower is more strict, typical range 0.5-2.0)
         
         for employee in employees:
             if "faceDescriptor" in employee and employee["faceDescriptor"]:
                 try:
-                    # Use real descriptor comparison
-                    distance = compare_descriptors(probe_descriptor, employee["faceDescriptor"])
+                    # Use DeepFace embedding comparison
+                    distance = compare_faces_deepface(probe_embedding, employee["faceDescriptor"])
                     logger.info(f"Distance for {employee['name']}: {distance}")
                     
                     if distance < min_distance:
                         min_distance = distance
-                        if distance < threshold:
+                        if distance < RECOGNITION_THRESHOLD:
                             matched_employee = employee
                 except Exception as e:
                     logger.error(f"Error comparing with {employee['name']}: {str(e)}")
