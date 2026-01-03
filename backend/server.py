@@ -144,6 +144,7 @@ async def get_employee(employee_id: str):
 async def create_attendance(attendance: AttendanceCreate):
     try:
         attendance_dict = attendance.dict()
+        attendance_dict["timestamp"] = datetime.utcnow()
         result = await db.attendance.insert_one(attendance_dict)
         attendance_dict["id"] = str(result.inserted_id)
         logger.info(f"Attendance recorded: {attendance_dict['employeeName']} - {attendance_dict['type']}")
