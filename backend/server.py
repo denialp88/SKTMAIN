@@ -493,6 +493,28 @@ async def recognize_face(request: FaceRecognitionRequest):
 async def root():
     return {"message": "Employee Attendance API", "status": "running"}
 
+@api_router.delete("/employees/clear-old")
+async def clear_old_employees():
+    """Clear employees with old face descriptor format (non-VGG-Face)"""
+    try:
+        # Delete employees with old 128-d or 3780-d descriptors (not 4096-d VGG-Face)
+        result = await db.employees.delete_many({
+            "$or": [
+                {"faceDescriptor": {"$size": 128}},
+                {"faceDescriptor": {"$size": 3780}}
+            ]
+        })
+        
+        logger.info(f"Cleared {result.deleted_count} old employees")
+        return {
+            "success": True,
+            "deleted_count": result.deleted_count,
+            "message": f"Cleared {result.deleted_count} employees with old face format. Please re-register them."
+        }
+    except Exception as e:
+        logger.error(f"Error clearing old employees: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Include the router in the main app
 app.include_router(api_router)
 
