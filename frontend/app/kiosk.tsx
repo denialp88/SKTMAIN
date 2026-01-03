@@ -3,17 +3,17 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as Speech from 'expo-speech';
 
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+const SCAN_INTERVAL = 3000; // Scan every 3 seconds
 
 export default function Kiosk() {
   const router = useRouter();
@@ -22,45 +22,85 @@ export default function Kiosk() {
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<any>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scanTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastScanTimeRef = useRef<number>(0);
 
+  // Automatic scanning effect
+  useEffect(() => {
+    if (permission?.granted && !processing) {
+      // Start automatic scanning
+      startAutomaticScanning();
+    }
+
+    return () => {
+      // Cleanup on unmount
+      if (scanTimerRef.current) {
+        clearTimeout(scanTimerRef.current);
+      }
+    };
+  }, [permission?.granted]);
+
+  // Handle result animation and cleanup
   useEffect(() => {
     if (result) {
+      // Speak the result
+      if (result.success && result.name) {
+        const message = `Welcome ${result.name}. Punched ${result.action}`;
+        Speech.speak(message, {
+          language: 'en-US',
+          pitch: 1.0,
+          rate: 0.9,
+        });
+      }
+
       Animated.sequence([
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 300,
           useNativeDriver: true,
         }),
-        Animated.delay(3000),
+        Animated.delay(4000),
         Animated.timing(fadeAnim, {
           toValue: 0,
           duration: 300,
           useNativeDriver: true,
         }),
-      ]).start(() => setResult(null));
+      ]).start(() => {
+        setResult(null);
+        // Resume scanning after result is dismissed
+        if (!processing) {
+          startAutomaticScanning();
+        }
+      });
     }
   }, [result]);
 
-  const requestCameraPermission = async () => {
-    if (!permission?.granted) {
-      const result = await requestPermission();
-      if (!result.granted) {
-        Alert.alert('Permission Required', 'Camera permission is required for face recognition.');
-        return false;
-      }
+  const startAutomaticScanning = () => {
+    // Clear any existing timer
+    if (scanTimerRef.current) {
+      clearTimeout(scanTimerRef.current);
     }
-    return true;
+
+    // Schedule next scan
+    scanTimerRef.current = setTimeout(() => {
+      const now = Date.now();
+      // Prevent too frequent scans
+      if (now - lastScanTimeRef.current >= SCAN_INTERVAL) {
+        handleAutomaticScan();
+      } else {
+        startAutomaticScanning();
+      }
+    }, 1000);
   };
 
-  const handleScanFace = async () => {
-    const hasPermission = await requestCameraPermission();
-    if (!hasPermission) return;
-
-    if (cameraRef.current && !processing) {
+  const handleAutomaticScan = async () => {
+    if (cameraRef.current && !processing && permission?.granted) {
       setProcessing(true);
+      lastScanTimeRef.current = Date.now();
+
       try {
         const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.5,
+          quality: 0.7,
           base64: true,
         });
 
@@ -87,20 +127,27 @@ export default function Kiosk() {
             message: data.message,
           });
         } else {
-          setResult({
-            success: false,
-            message: data.message,
-          });
+          // Don't show error for "no face detected" to avoid constant error messages
+          if (!data.message.includes('No face detected') && !data.message.includes('quality')) {
+            setResult({
+              success: false,
+              message: data.message,
+            });
+          }
         }
       } catch (error) {
         console.error('Error scanning face:', error);
-        setResult({
-          success: false,
-          message: 'Failed to process face. Please try again.',
-        });
+        // Silent fail for automatic scanning
       } finally {
         setProcessing(false);
+        // Continue automatic scanning
+        if (!result) {
+          startAutomaticScanning();
+        }
       }
+    } else {
+      // Retry if conditions not met
+      startAutomaticScanning();
     }
   };
 
@@ -118,12 +165,9 @@ export default function Kiosk() {
         <View style={styles.permissionContainer}>
           <Ionicons name="camera-outline" size={80} color="#999" />
           <Text style={styles.permissionText}>Camera permission is required</Text>
-          <TouchableOpacity style={styles.permissionButton} onPress={requestCameraPermission}>
-            <Text style={styles.permissionButtonText}>Grant Permission</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.backButtonAlt} onPress={() => router.back()}>
-            <Text style={styles.backButtonAltText}>Go Back</Text>
-          </TouchableOpacity>
+          <Text style={styles.permissionSubtext}>
+            This kiosk app requires camera access for automatic face recognition
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -134,43 +178,49 @@ export default function Kiosk() {
       <CameraView ref={cameraRef} style={styles.camera} facing="front">
         <SafeAreaView style={styles.overlay}>
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={28} color="#fff" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Kiosk Mode</Text>
-            <View style={styles.placeholder} />
+            <View style={styles.headerContent}>
+              <Ionicons name="shield-checkmark" size={32} color="#fff" />
+              <Text style={styles.headerTitle}>Attendance Kiosk</Text>
+            </View>
+            <Text style={styles.headerSubtitle}>Automatic Face Recognition</Text>
           </View>
 
           <View style={styles.content}>
             <View style={styles.instructionContainer}>
-              <Text style={styles.instructionText}>Position your face in the frame</Text>
-              <Text style={styles.instructionSubtext}>Look directly at the camera</Text>
-            </View>
-
-            <View style={styles.faceFrameContainer}>
-              <View style={styles.faceFrame}>
-                <View style={[styles.corner, styles.topLeft]} />
-                <View style={[styles.corner, styles.topRight]} />
-                <View style={[styles.corner, styles.bottomLeft]} />
-                <View style={[styles.corner, styles.bottomRight]} />
+              <View style={styles.faceFrameContainer}>
+                <View style={styles.faceFrame}>
+                  <View style={[styles.corner, styles.topLeft]} />
+                  <View style={[styles.corner, styles.topRight]} />
+                  <View style={[styles.corner, styles.bottomLeft]} />
+                  <View style={[styles.corner, styles.bottomRight]} />
+                  
+                  {processing && (
+                    <View style={styles.scanningIndicator}>
+                      <ActivityIndicator size="large" color="#4CAF50" />
+                      <Text style={styles.scanningText}>Scanning...</Text>
+                    </View>
+                  )}
+                </View>
               </View>
-            </View>
 
-            <View style={styles.actionContainer}>
-              <TouchableOpacity
-                style={[styles.scanButton, processing && styles.scanButtonDisabled]}
-                onPress={handleScanFace}
-                disabled={processing}
-              >
-                {processing ? (
-                  <ActivityIndicator color="#fff" size="large" />
-                ) : (
-                  <>
-                    <Ionicons name="scan" size={32} color="#fff" />
-                    <Text style={styles.scanButtonText}>Scan Face</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              <View style={styles.statusContainer}>
+                <View style={styles.statusIndicator}>
+                  <Ionicons 
+                    name={processing ? "scan-circle" : "checkmark-circle"} 
+                    size={24} 
+                    color={processing ? "#FFC107" : "#4CAF50"} 
+                  />
+                  <Text style={styles.statusText}>
+                    {processing ? "Processing..." : "Ready to scan"}
+                  </Text>
+                </View>
+                <Text style={styles.instructionText}>
+                  Position your face in the frame
+                </Text>
+                <Text style={styles.instructionSubtext}>
+                  Automatic scanning is active
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -195,7 +245,9 @@ export default function Kiosk() {
                   <Text style={styles.resultAction}>
                     Punched {result.action?.toUpperCase()}
                   </Text>
-                  <Text style={styles.resultMessage}>{result.message}</Text>
+                  <Text style={styles.resultTimestamp}>
+                    {new Date().toLocaleTimeString()}
+                  </Text>
                 </>
               ) : (
                 <Text style={styles.resultMessage}>{result.message}</Text>
@@ -221,62 +273,46 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
   header: {
+    alignItems: 'center',
+    paddingTop: 20,
+    paddingBottom: 16,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  backButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    gap: 12,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  placeholder: {
-    width: 48,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'space-around',
-  },
-  instructionContainer: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  instructionText: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
-    textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.75)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
-  instructionSubtext: {
-    fontSize: 16,
-    color: '#fff',
-    marginTop: 8,
-    textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.75)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#4CAF50',
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  instructionContainer: {
+    alignItems: 'center',
   },
   faceFrameContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 32,
   },
   faceFrame: {
     width: 280,
     height: 350,
     borderRadius: 140,
     position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   corner: {
     position: 'absolute',
@@ -313,31 +349,47 @@ const styles = StyleSheet.create({
     borderLeftWidth: 0,
     borderBottomRightRadius: 20,
   },
-  actionContainer: {
+  scanningIndicator: {
     alignItems: 'center',
-    paddingBottom: 40,
+    justifyContent: 'center',
   },
-  scanButton: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 48,
-    paddingVertical: 20,
-    borderRadius: 50,
+  scanningText: {
+    color: '#4CAF50',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 12,
+    textShadowColor: 'rgba(0,0,0,0.75)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  statusContainer: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    padding: 20,
+    borderRadius: 16,
+    minWidth: 300,
+  },
+  statusIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    marginBottom: 12,
   },
-  scanButtonDisabled: {
-    opacity: 0.7,
-  },
-  scanButtonText: {
-    color: '#fff',
-    fontSize: 20,
+  statusText: {
+    fontSize: 18,
     fontWeight: 'bold',
+    color: '#fff',
+  },
+  instructionText: {
+    fontSize: 16,
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  instructionSubtext: {
+    fontSize: 14,
+    color: '#4CAF50',
+    textAlign: 'center',
   },
   resultContainer: {
     position: 'absolute',
@@ -367,6 +419,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
+  resultTimestamp: {
+    fontSize: 16,
+    color: '#fff',
+    marginTop: 12,
+    opacity: 0.9,
+  },
   resultMessage: {
     fontSize: 16,
     color: '#fff',
@@ -385,24 +443,11 @@ const styles = StyleSheet.create({
     marginTop: 16,
     textAlign: 'center',
   },
-  permissionButton: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 8,
-    marginTop: 24,
-  },
-  permissionButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  backButtonAlt: {
-    marginTop: 16,
-    padding: 12,
-  },
-  backButtonAltText: {
-    color: '#2196F3',
-    fontSize: 16,
+  permissionSubtext: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 8,
+    textAlign: 'center',
+    maxWidth: 300,
   },
 });
