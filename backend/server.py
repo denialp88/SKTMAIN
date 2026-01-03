@@ -177,6 +177,10 @@ async def get_employee_attendance(employee_id: str):
         attendance_records = await db.attendance.find(
             {"employeeId": employee_id}
         ).sort("timestamp", -1).to_list(100)
+        # Ensure all attendance records have timestamp field
+        for record in attendance_records:
+            if 'timestamp' not in record:
+                record['timestamp'] = datetime.utcnow()
         return [AttendanceResponse(**serialize_doc(record)) for record in attendance_records]
     except Exception as e:
         logger.error(f"Error fetching employee attendance: {str(e)}")
