@@ -14,6 +14,8 @@ import cv2
 import numpy as np
 from PIL import Image
 import io
+from deepface import DeepFace
+import tempfile
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
