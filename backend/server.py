@@ -220,10 +220,43 @@ async def create_employee(employee: EmployeeCreate):
     try:
         employee_dict = employee.dict()
         employee_dict["createdAt"] = datetime.utcnow()
+        
+        # Extract real face descriptor if facePhoto is provided
+        if employee_dict.get("facePhoto"):
+            try:
+                # Convert base64 to image
+                image = base64_to_image(employee_dict["facePhoto"])
+                
+                # Detect face
+                faces = detect_face(image)
+                
+                if len(faces) == 0:
+                    raise HTTPException(status_code=400, detail="No face detected in image. Please ensure face is clearly visible.")
+                
+                if len(faces) > 1:
+                    raise HTTPException(status_code=400, detail="Multiple faces detected. Please use image with single face.")
+                
+                # Extract face descriptor from the detected face
+                face_rect = faces[0]
+                descriptor = extract_face_descriptor(image, face_rect)
+                
+                # Store the real descriptor
+                employee_dict["faceDescriptor"] = descriptor
+                
+                logger.info(f"Successfully extracted face descriptor with {len(descriptor)} features")
+                
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"Error processing face photo: {str(e)}")
+                raise HTTPException(status_code=400, detail=f"Failed to process face photo: {str(e)}")
+        
         result = await db.employees.insert_one(employee_dict)
         employee_dict["id"] = str(result.inserted_id)
         logger.info(f"Employee created: {employee_dict['name']}")
         return EmployeeResponse(**employee_dict)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error creating employee: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
