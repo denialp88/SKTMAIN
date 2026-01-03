@@ -66,17 +66,13 @@ export default function Kiosk() {
 
         const base64Image = `data:image/jpeg;base64,${photo.base64}`;
 
-        // Generate face descriptor from the captured image
-        const faceDescriptor = await generateFaceDescriptor(base64Image);
-
-        // Send to backend for recognition
+        // Send to backend for real face recognition
         const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/attendance/recognize`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            faceDescriptor,
             facePhoto: base64Image,
           }),
         });
@@ -106,14 +102,6 @@ export default function Kiosk() {
         setProcessing(false);
       }
     }
-  };
-
-  // Generate face descriptor from base64 image
-  const generateFaceDescriptor = async (base64Image: string): Promise<number[]> => {
-    // For now, return a dummy descriptor
-    // In production, you would use face-api.js to generate real descriptors
-    const descriptor = Array.from({ length: 128 }, () => Math.random());
-    return descriptor;
   };
 
   if (!permission) {
