@@ -336,34 +336,64 @@ async def get_employee_attendance(employee_id: str):
 @api_router.post("/attendance/recognize", response_model=FaceRecognitionResponse)
 async def recognize_face(request: FaceRecognitionRequest):
     try:
+        # Convert base64 image to OpenCV format
+        image = base64_to_image(request.facePhoto)
+        
+        # Detect face in the probe image
+        faces = detect_face(image)
+        
+        if len(faces) == 0:
+            return FaceRecognitionResponse(
+                recognized=False,
+                message="No face detected. Please position your face clearly in front of the camera."
+            )
+        
+        if len(faces) > 1:
+            return FaceRecognitionResponse(
+                recognized=False,
+                message="Multiple faces detected. Please ensure only one person is in frame."
+            )
+        
+        # Extract descriptor from detected face
+        face_rect = faces[0]
+        probe_descriptor = extract_face_descriptor(image, face_rect)
+        
+        logger.info(f"Extracted probe face descriptor with {len(probe_descriptor)} features")
+        
         # Get all employees with face descriptors
-        employees = await db.employees.find({"faceDescriptor": {"$exists": True}}).to_list(1000)
+        employees = await db.employees.find({"faceDescriptor": {"$exists": True, "$ne": None}}).to_list(1000)
         
         if not employees:
             return FaceRecognitionResponse(
                 recognized=False,
-                message="No registered employees found"
+                message="No registered employees found. Please register first."
             )
         
-        # Compare face descriptors (Euclidean distance)
+        # Compare with all stored descriptors using real descriptor comparison
         matched_employee = None
         min_distance = float('inf')
-        threshold = 0.6  # Face recognition threshold
+        threshold = 1.5  # HOG-based threshold (lower is more strict, typical range 0.5-2.0)
         
         for employee in employees:
             if "faceDescriptor" in employee and employee["faceDescriptor"]:
-                # Calculate Euclidean distance
-                distance = sum([(a - b) ** 2 for a, b in zip(request.faceDescriptor, employee["faceDescriptor"])]) ** 0.5
-                logger.info(f"Distance for {employee['name']}: {distance}")
-                
-                if distance < min_distance and distance < threshold:
-                    min_distance = distance
-                    matched_employee = employee
+                try:
+                    # Use real descriptor comparison
+                    distance = compare_descriptors(probe_descriptor, employee["faceDescriptor"])
+                    logger.info(f"Distance for {employee['name']}: {distance}")
+                    
+                    if distance < min_distance:
+                        min_distance = distance
+                        if distance < threshold:
+                            matched_employee = employee
+                except Exception as e:
+                    logger.error(f"Error comparing with {employee['name']}: {str(e)}")
+                    continue
         
         if not matched_employee:
+            logger.info(f"No match found. Minimum distance was: {min_distance}")
             return FaceRecognitionResponse(
                 recognized=False,
-                message="Face not recognized. Please contact admin for registration."
+                message=f"Face not recognized (confidence too low: {min_distance:.2f}). Please try again or contact admin for registration."
             )
         
         # Get last attendance to determine next action
@@ -388,14 +418,15 @@ async def recognize_face(request: FaceRecognitionRequest):
         }
         await db.attendance.insert_one(attendance_dict)
         
-        logger.info(f"Face recognized: {matched_employee['name']} - Punch {attendance_type}")
+        confidence = max(0, min(100, (1 - min_distance / threshold) * 100))
+        logger.info(f"Face recognized: {matched_employee['name']} - Punch {attendance_type} (distance: {min_distance:.2f}, confidence: {confidence:.1f}%)")
         
         return FaceRecognitionResponse(
             recognized=True,
             employeeId=employee_id,
             employeeName=matched_employee["name"],
             attendanceType=attendance_type,
-            message=f"Welcome {matched_employee['name']}! Punched {attendance_type.upper()} successfully."
+            message=f"Welcome {matched_employee['name']}! Punched {attendance_type.upper()} successfully (Confidence: {confidence:.0f}%)."
         )
         
     except Exception as e:
