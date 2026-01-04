@@ -241,28 +241,6 @@ export default function Kiosk() {
   );
 }
 
-  if (!permission) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#4CAF50" />
-      </View>
-    );
-  }
-
-  if (!permission.granted) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.permissionContainer}>
-          <Ionicons name="camera-outline" size={80} color="#999" />
-          <Text style={styles.permissionText}>Camera permission is required</Text>
-          <Text style={styles.permissionSubtext}>
-            This kiosk app requires camera access for automatic face recognition
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <CameraView ref={cameraRef} style={styles.camera} facing="front">
