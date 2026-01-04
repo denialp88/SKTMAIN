@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Index() {
   const router = useRouter();
@@ -9,53 +10,82 @@ export default function Index() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.header}>
-          <Image 
-            source={require('../assets/logo.png')} 
-            style={styles.logo}
-            resizeMode="contain"
-          />
+        {/* Logo Section */}
+        <View style={styles.logoSection}>
+          <View style={styles.logoContainer}>
+            <Image 
+              source={require('../assets/logo.png')} 
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
         </View>
 
-        <View style={styles.buttonContainer}>
+        {/* Cards Section */}
+        <View style={styles.cardsSection}>
+          {/* Kiosk Card */}
           <TouchableOpacity
-            style={styles.kioskCard}
+            style={styles.card}
             onPress={() => router.push('/kiosk')}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
           >
-            <View style={styles.iconContainer}>
-              <Ionicons name="scan-outline" size={64} color="#FF6B35" />
-            </View>
-            <Text style={styles.cardTitle}>Kiosk Mode</Text>
-            <Text style={styles.cardSubtitle}>Automatic Face Recognition</Text>
+            <LinearGradient
+              colors={['#FF8C42', '#FF6B35']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.cardGradient}
+            >
+              <View style={styles.cardIconContainer}>
+                <View style={styles.iconCircle}>
+                  <Ionicons name="scan" size={42} color="#FF6B35" />
+                </View>
+              </View>
+              <Text style={styles.cardTitle}>Kiosk Mode</Text>
+              <Text style={styles.cardSubtitle}>Scan face for attendance</Text>
+              <View style={styles.cardArrow}>
+                <Ionicons name="arrow-forward" size={20} color="#FFF" />
+              </View>
+            </LinearGradient>
           </TouchableOpacity>
 
+          {/* Register Card */}
           <TouchableOpacity
-            style={styles.registerCard}
+            style={styles.card}
             onPress={() => router.push('/register')}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
           >
-            <View style={styles.iconContainer}>
-              <Ionicons name="person-add-outline" size={64} color="#06A77D" />
-            </View>
-            <Text style={styles.cardTitle}>Register Employee</Text>
-            <Text style={styles.cardSubtitle}>Add New Team Member</Text>
+            <LinearGradient
+              colors={['#1CD4C6', '#06A77D']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.cardGradient}
+            >
+              <View style={styles.cardIconContainer}>
+                <View style={styles.iconCircle}>
+                  <Ionicons name="person-add" size={42} color="#06A77D" />
+                </View>
+              </View>
+              <Text style={styles.cardTitle}>Register</Text>
+              <Text style={styles.cardSubtitle}>Add new employee</Text>
+              <View style={styles.cardArrow}>
+                <Ionicons name="arrow-forward" size={20} color="#FFF" />
+              </View>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
 
+        {/* Footer */}
         <View style={styles.footer}>
-          <View style={styles.featureItem}>
-            <Ionicons name="shield-checkmark-outline" size={20} color="#666" />
+          <View style={styles.featureBadge}>
+            <Ionicons name="shield-checkmark" size={18} color="#06A77D" />
             <Text style={styles.featureText}>Secure</Text>
           </View>
-          <View style={styles.divider} />
-          <View style={styles.featureItem}>
-            <Ionicons name="flash-outline" size={20} color="#666" />
+          <View style={styles.featureBadge}>
+            <Ionicons name="flash" size={18} color="#FF6B35" />
             <Text style={styles.featureText}>Fast</Text>
           </View>
-          <View style={styles.divider} />
-          <View style={styles.featureItem}>
-            <Ionicons name="eye-outline" size={20} color="#666" />
+          <View style={styles.featureBadge}>
+            <Ionicons name="eye" size={18} color="#7B2CBF" />
             <Text style={styles.featureText}>Accurate</Text>
           </View>
         </View>
@@ -67,89 +97,116 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8F9FC',
   },
   content: {
     flex: 1,
-    padding: 24,
-    justifyContent: 'space-between',
+    paddingHorizontal: 20,
   },
-  header: {
+  logoSection: {
     alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 20,
+    paddingTop: 30,
+    paddingBottom: 20,
+  },
+  logoContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 100,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
   },
   logo: {
-    width: 180,
-    height: 180,
+    width: 140,
+    height: 140,
   },
-  buttonContainer: {
+  cardsSection: {
     flex: 1,
-    gap: 20,
     justifyContent: 'center',
-    marginBottom: 40,
+    gap: 20,
+    paddingVertical: 20,
   },
-  kioskCard: {
-    backgroundColor: '#FFF5F0',
-    borderRadius: 24,
-    padding: 32,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FF6B35',
-    shadowColor: '#FF6B35',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
+  card: {
+    borderRadius: 28,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 12,
   },
-  registerCard: {
-    backgroundColor: '#F0FFF9',
-    borderRadius: 24,
-    padding: 32,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#06A77D',
-    shadowColor: '#06A77D',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
+  cardGradient: {
+    padding: 28,
+    minHeight: 160,
   },
-  iconContainer: {
+  cardIconContainer: {
     marginBottom: 16,
   },
+  iconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+  },
   cardTitle: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 8,
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 6,
+    letterSpacing: 0.5,
   },
   cardSubtitle: {
     fontSize: 15,
-    color: '#666',
-    textAlign: 'center',
+    color: '#FFFFFF',
+    opacity: 0.95,
+    fontWeight: '500',
+  },
+  cardArrow: {
+    position: 'absolute',
+    bottom: 28,
+    right: 28,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingVertical: 16,
-    backgroundColor: '#F8F8F8',
-    borderRadius: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  featureItem: {
+  featureBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#F8F9FC',
+    borderRadius: 12,
   },
   featureText: {
-    fontSize: 13,
-    color: '#666',
-    fontWeight: '600',
-  },
-  divider: {
-    width: 1,
-    height: 24,
-    backgroundColor: '#DDD',
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1A1A1A',
   },
 });
