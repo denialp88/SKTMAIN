@@ -71,29 +71,38 @@ def check_image_quality(image_path):
         faces = DeepFace.extract_faces(
             img_path=image_path,
             detector_backend=DETECTOR_BACKEND,
-            enforce_detection=True
+            enforce_detection=True,
+            align=True
         )
         
         if not faces or len(faces) == 0:
             return False, "No face detected in image"
         
-        if len(faces) > 1:
-            return False, "Multiple faces detected. Please use image with single face"
+        # Filter faces by confidence and size
+        valid_faces = []
+        for face_data in faces:
+            confidence = face_data.get('confidence', 0)
+            facial_area = face_data.get('facial_area', {})
+            face_width = facial_area.get('w', 0)
+            face_height = facial_area.get('h', 0)
+            
+            # Only consider faces with good confidence and reasonable size
+            if confidence > 0.95 and face_width > 100 and face_height > 100:
+                valid_faces.append(face_data)
         
-        face_data = faces[0]
+        if len(valid_faces) == 0:
+            return False, "No clear face detected. Please ensure good lighting and position face directly in front"
+        
+        if len(valid_faces) > 1:
+            return False, "Multiple faces detected. Please ensure only one person is in frame"
+        
+        # Check the single valid face
+        face_data = valid_faces[0]
         confidence = face_data.get('confidence', 0)
         
         # Check face detection confidence
-        if confidence < 0.9:
-            return False, f"Face detection confidence too low ({confidence:.2f}). Please retake with better lighting"
-        
-        # Check face size
-        facial_area = face_data.get('facial_area', {})
-        face_width = facial_area.get('w', 0)
-        face_height = facial_area.get('h', 0)
-        
-        if face_width < 80 or face_height < 80:
-            return False, "Face too small. Please move closer to camera"
+        if confidence < 0.97:
+            return False, f"Face detection confidence too low. Please improve lighting and face camera directly"
         
         return True, "Good quality"
         
