@@ -38,9 +38,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# DeepFace configuration - using VGG-Face for best accuracy
+# DeepFace configuration - using better detector
 FACE_MODEL = "VGG-Face"  # Options: VGG-Face, Facenet, Facenet512, ArcFace, Dlib
-DETECTOR_BACKEND = "opencv"  # Options: opencv, ssd, dlib, mtcnn, retinaface
+DETECTOR_BACKEND = "retinaface"  # Using retinaface for better accuracy
 RECOGNITION_THRESHOLD = 0.4  # Lower = more strict (VGG-Face threshold: 0.4)
 
 def base64_to_temp_file(base64_string):
