@@ -12,7 +12,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Speech from 'expo-speech';
-import * as FaceDetector from 'expo-face-detector';
 
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -22,13 +21,28 @@ export default function Kiosk() {
   const cameraRef = useRef<any>(null);
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [faceDetected, setFaceDetected] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const lastScanRef = useRef<number>(0);
-  const processingRef = useRef(false);
+  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const processingLockRef = useRef(false);
+
+  useEffect(() => {
+    if (permission?.granted && !processingLockRef.current) {
+      startSmartScanning();
+    }
+
+    return () => {
+      if (scanIntervalRef.current) {
+        clearInterval(scanIntervalRef.current);
+      }
+    };
+  }, [permission?.granted]);
 
   useEffect(() => {
     if (result) {
+      // Lock processing
+      processingLockRef.current = true;
+
       if (result.success && result.name) {
         const message = `Welcome ${result.name}`;
         Speech.speak(message, {
@@ -52,40 +66,35 @@ export default function Kiosk() {
         }),
       ]).start(() => {
         setResult(null);
-        processingRef.current = false;
+        // Unlock processing after result disappears
+        setTimeout(() => {
+          processingLockRef.current = false;
+        }, 500);
       });
     }
   }, [result]);
 
-  const handleFacesDetected = async ({ faces }: any) => {
-    // Check if a face is detected
-    if (faces && faces.length > 0) {
-      setFaceDetected(true);
-      
-      // Check if we should trigger scan
-      const now = Date.now();
-      const timeSinceLastScan = now - lastScanRef.current;
-      
-      // Only scan if:
-      // 1. Not currently processing
-      // 2. At least 2 seconds since last scan
-      // 3. No result currently showing
-      if (!processingRef.current && !result && timeSinceLastScan > 2000) {
-        lastScanRef.current = now;
-        await handleFaceScan();
-      }
-    } else {
-      setFaceDetected(false);
+  const startSmartScanning = () => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
     }
+
+    // Check every 2 seconds if we should scan
+    scanIntervalRef.current = setInterval(() => {
+      if (!processingLockRef.current && !processing && !result) {
+        handleSmartScan();
+      }
+    }, 2000);
   };
 
-  const handleFaceScan = async () => {
-    if (!cameraRef.current || processingRef.current) {
+  const handleSmartScan = async () => {
+    if (!cameraRef.current || processingLockRef.current || processing || result) {
       return;
     }
 
-    processingRef.current = true;
+    processingLockRef.current = true;
     setProcessing(true);
+    setScanning(true);
 
     try {
       const photo = await cameraRef.current.takePictureAsync({
@@ -116,26 +125,25 @@ export default function Kiosk() {
           message: data.message,
         });
       } else {
-        // Only show error for actual recognition failures, not "no face"
-        if (!data.message.includes('No face detected') && !data.message.includes('quality')) {
+        // Only show error for actual recognition failures
+        if (!data.message.includes('No face detected') && 
+            !data.message.includes('quality') &&
+            !data.message.includes('Multiple faces')) {
           setResult({
             success: false,
             message: data.message,
           });
         } else {
-          // Reset processing for quick retry
-          processingRef.current = false;
-          setProcessing(false);
+          // Quick unlock for retry
+          processingLockRef.current = false;
         }
       }
     } catch (error) {
       console.error('Scan error:', error);
-      processingRef.current = false;
-      setProcessing(false);
+      processingLockRef.current = false;
     } finally {
-      if (!result) {
-        setProcessing(false);
-      }
+      setProcessing(false);
+      setScanning(false);
     }
   };
 
@@ -168,14 +176,6 @@ export default function Kiosk() {
         style={styles.camera} 
         facing="front"
         enableTorch={false}
-        onFacesDetected={handleFacesDetected}
-        faceDetectorSettings={{
-          mode: FaceDetector.FaceDetectorMode.fast,
-          detectLandmarks: FaceDetector.FaceDetectorLandmarks.none,
-          runClassifications: FaceDetector.FaceDetectorClassifications.none,
-          minDetectionInterval: 500,
-          tracking: true,
-        }}
       >
         <SafeAreaView style={styles.overlay}>
           <View style={styles.header}>
@@ -191,7 +191,7 @@ export default function Kiosk() {
               <View style={styles.faceFrameContainer}>
                 <View style={[
                   styles.faceFrame,
-                  faceDetected && !processing && styles.faceFrameActive
+                  processing && styles.faceFrameActive
                 ]}>
                   <View style={[styles.corner, styles.topLeft]} />
                   <View style={[styles.corner, styles.topRight]} />
@@ -201,14 +201,14 @@ export default function Kiosk() {
                   {processing && (
                     <View style={styles.scanningIndicator}>
                       <ActivityIndicator size="large" color="#FF6B35" />
-                      <Text style={styles.scanningText}>Processing...</Text>
+                      <Text style={styles.scanningText}>Recognizing...</Text>
                     </View>
                   )}
 
-                  {!processing && faceDetected && (
-                    <View style={styles.faceDetectedIndicator}>
-                      <Ionicons name="checkmark-circle" size={48} color="#06A77D" />
-                      <Text style={styles.faceDetectedText}>Face Detected</Text>
+                  {!processing && !result && (
+                    <View style={styles.readyIndicator}>
+                      <Ionicons name="scan-outline" size={48} color="#06A77D" />
+                      <Text style={styles.readyText}>Ready</Text>
                     </View>
                   )}
                 </View>
@@ -217,18 +217,19 @@ export default function Kiosk() {
               <View style={styles.statusContainer}>
                 <View style={styles.statusIndicator}>
                   <Ionicons 
-                    name={processing ? "hourglass" : faceDetected ? "person" : "scan-circle"} 
+                    name={processing ? "hourglass" : "scan-circle"} 
                     size={24} 
-                    color={processing ? "#FF6B35" : faceDetected ? "#06A77D" : "#999"} 
-                  />\n                  <Text style={styles.statusText}>
-                    {processing ? "Processing..." : faceDetected ? "Face Detected - Scanning..." : "Waiting for Face..."}
+                    color={processing ? "#FF6B35" : "#06A77D"} 
+                  />
+                  <Text style={styles.statusText}>
+                    {processing ? "Processing..." : "Ready to Scan"}
                   </Text>
                 </View>
                 <Text style={styles.instructionText}>
-                  {faceDetected ? "Hold still..." : "Position your face in the frame"}
+                  {processing ? "Hold still..." : "Position your face in the frame"}
                 </Text>
                 <Text style={styles.instructionSubtext}>
-                  Auto-scan when face detected
+                  Automatic scanning • 2s interval
                 </Text>
               </View>
             </View>
@@ -318,7 +319,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   faceFrameActive: {
-    backgroundColor: 'rgba(6, 167, 125, 0.1)',
+    backgroundColor: 'rgba(255, 107, 53, 0.1)',
   },
   corner: {
     position: 'absolute',
@@ -368,11 +369,11 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
-  faceDetectedIndicator: {
+  readyIndicator: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  faceDetectedText: {
+  readyText: {
     color: '#06A77D',
     fontSize: 16,
     fontWeight: 'bold',
