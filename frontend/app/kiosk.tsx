@@ -12,9 +12,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Speech from 'expo-speech';
+import * as FaceDetector from 'expo-face-detector';
 
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-const SCAN_INTERVAL = 1500;
 
 export default function Kiosk() {
   const router = useRouter();
@@ -22,20 +22,10 @@ export default function Kiosk() {
   const cameraRef = useRef<any>(null);
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [faceDetected, setFaceDetected] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    if (permission?.granted) {
-      startAutomaticScanning();
-    }
-
-    return () => {
-      if (scanIntervalRef.current) {
-        clearInterval(scanIntervalRef.current);
-      }
-    };
-  }, [permission?.granted]);
+  const lastScanRef = useRef<number>(0);
+  const processingRef = useRef(false);
 
   useEffect(() => {
     if (result) {
@@ -62,27 +52,39 @@ export default function Kiosk() {
         }),
       ]).start(() => {
         setResult(null);
+        processingRef.current = false;
       });
     }
   }, [result]);
 
-  const startAutomaticScanning = () => {
-    if (scanIntervalRef.current) {
-      clearInterval(scanIntervalRef.current);
-    }
-
-    scanIntervalRef.current = setInterval(() => {
-      if (!processing && !result) {
-        handleAutomaticScan();
+  const handleFacesDetected = async ({ faces }: any) => {
+    // Check if a face is detected
+    if (faces && faces.length > 0) {
+      setFaceDetected(true);
+      
+      // Check if we should trigger scan
+      const now = Date.now();
+      const timeSinceLastScan = now - lastScanRef.current;
+      
+      // Only scan if:
+      // 1. Not currently processing
+      // 2. At least 2 seconds since last scan
+      // 3. No result currently showing
+      if (!processingRef.current && !result && timeSinceLastScan > 2000) {
+        lastScanRef.current = now;
+        await handleFaceScan();
       }
-    }, SCAN_INTERVAL);
+    } else {
+      setFaceDetected(false);
+    }
   };
 
-  const handleAutomaticScan = async () => {
-    if (!cameraRef.current || processing || result || !permission?.granted) {
+  const handleFaceScan = async () => {
+    if (!cameraRef.current || processingRef.current) {
       return;
     }
 
+    processingRef.current = true;
     setProcessing(true);
 
     try {
@@ -113,11 +115,27 @@ export default function Kiosk() {
           action: data.attendanceType,
           message: data.message,
         });
+      } else {
+        // Only show error for actual recognition failures, not "no face"
+        if (!data.message.includes('No face detected') && !data.message.includes('quality')) {
+          setResult({
+            success: false,
+            message: data.message,
+          });
+        } else {
+          // Reset processing for quick retry
+          processingRef.current = false;
+          setProcessing(false);
+        }
       }
     } catch (error) {
       console.error('Scan error:', error);
-    } finally {
+      processingRef.current = false;
       setProcessing(false);
+    } finally {
+      if (!result) {
+        setProcessing(false);
+      }
     }
   };
 
@@ -150,6 +168,14 @@ export default function Kiosk() {
         style={styles.camera} 
         facing="front"
         enableTorch={false}
+        onFacesDetected={handleFacesDetected}
+        faceDetectorSettings={{
+          mode: FaceDetector.FaceDetectorMode.fast,
+          detectLandmarks: FaceDetector.FaceDetectorLandmarks.none,
+          runClassifications: FaceDetector.FaceDetectorClassifications.none,
+          minDetectionInterval: 500,
+          tracking: true,
+        }}
       >
         <SafeAreaView style={styles.overlay}>
           <View style={styles.header}>
@@ -163,7 +189,10 @@ export default function Kiosk() {
           <View style={styles.content}>
             <View style={styles.instructionContainer}>
               <View style={styles.faceFrameContainer}>
-                <View style={styles.faceFrame}>
+                <View style={[
+                  styles.faceFrame,
+                  faceDetected && !processing && styles.faceFrameActive
+                ]}>
                   <View style={[styles.corner, styles.topLeft]} />
                   <View style={[styles.corner, styles.topRight]} />
                   <View style={[styles.corner, styles.bottomLeft]} />
@@ -172,7 +201,14 @@ export default function Kiosk() {
                   {processing && (
                     <View style={styles.scanningIndicator}>
                       <ActivityIndicator size="large" color="#FF6B35" />
-                      <Text style={styles.scanningText}>Scanning...</Text>
+                      <Text style={styles.scanningText}>Processing...</Text>
+                    </View>
+                  )}
+
+                  {!processing && faceDetected && (
+                    <View style={styles.faceDetectedIndicator}>
+                      <Ionicons name="checkmark-circle" size={48} color="#06A77D" />
+                      <Text style={styles.faceDetectedText}>Face Detected</Text>
                     </View>
                   )}
                 </View>
@@ -181,19 +217,18 @@ export default function Kiosk() {
               <View style={styles.statusContainer}>
                 <View style={styles.statusIndicator}>
                   <Ionicons 
-                    name={processing ? "scan-circle" : "checkmark-circle"} 
+                    name={processing ? "hourglass" : faceDetected ? "person" : "scan-circle"} 
                     size={24} 
-                    color={processing ? "#FF6B35" : "#06A77D"} 
-                  />
-                  <Text style={styles.statusText}>
-                    {processing ? "Processing..." : "Ready to Scan"}
+                    color={processing ? "#FF6B35" : faceDetected ? "#06A77D" : "#999"} 
+                  />\n                  <Text style={styles.statusText}>
+                    {processing ? "Processing..." : faceDetected ? "Face Detected - Scanning..." : "Waiting for Face..."}
                   </Text>
                 </View>
                 <Text style={styles.instructionText}>
-                  Position your face in the frame
+                  {faceDetected ? "Hold still..." : "Position your face in the frame"}
                 </Text>
                 <Text style={styles.instructionSubtext}>
-                  Automatic scanning • 1.5s interval
+                  Auto-scan when face detected
                 </Text>
               </View>
             </View>
@@ -282,6 +317,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  faceFrameActive: {
+    backgroundColor: 'rgba(6, 167, 125, 0.1)',
+  },
   corner: {
     position: 'absolute',
     width: 40,
@@ -330,6 +368,19 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
+  faceDetectedIndicator: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  faceDetectedText: {
+    color: '#06A77D',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 12,
+    textShadowColor: 'rgba(0,0,0,0.75)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
   statusContainer: {
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.95)',
@@ -348,7 +399,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   statusText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#1A1A1A',
   },
