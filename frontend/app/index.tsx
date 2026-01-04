@@ -2,80 +2,64 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Index() {
   const router = useRouter();
 
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient
-        colors={['#7B2CBF', '#9D4EDD', '#C77DFF']}
-        style={styles.gradient}
-      >
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <Image 
-              source={require('../assets/logo.png')} 
-              style={styles.logo}
-              resizeMode="contain"
-            />
-            <Text style={styles.title}>Sanskar Saloon</Text>
-            <Text style={styles.subtitle}>Employee Attendance System</Text>
-          </View>
+      <View style={styles.content}>
+        <View style={styles.header}>
+          <Image 
+            source={require('../assets/logo.png')} 
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </View>
 
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={styles.kioskButton}
-              onPress={() => router.push('/kiosk')}
-            >
-              <LinearGradient
-                colors={['#FF6B35', '#FF8C42', '#FFA562']}
-                style={styles.buttonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <Ionicons name="scan" size={56} color="#fff" />
-                <Text style={styles.buttonText}>Kiosk Mode</Text>
-                <Text style={styles.buttonSubtext}>Face Recognition</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.registerButton}
-              onPress={() => router.push('/register')}
-            >
-              <LinearGradient
-                colors={['#06A77D', '#0FB8A8', '#1CD4C6']}
-                style={styles.buttonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <Ionicons name="person-add" size={56} color="#fff" />
-                <Text style={styles.buttonText}>Register</Text>
-                <Text style={styles.buttonSubtext}>New Employee</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.footer}>
-            <View style={styles.featureRow}>
-              <View style={styles.featureItem}>
-                <Ionicons name="shield-checkmark" size={24} color="#fff" />
-                <Text style={styles.featureText}>Secure</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Ionicons name="flash" size={24} color="#fff" />
-                <Text style={styles.featureText}>Fast</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Ionicons name="eye" size={24} color="#fff" />
-                <Text style={styles.featureText}>Accurate</Text>
-              </View>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={styles.kioskCard}
+            onPress={() => router.push('/kiosk')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.iconContainer}>
+              <Ionicons name="scan-outline" size={64} color="#FF6B35" />
             </View>
+            <Text style={styles.cardTitle}>Kiosk Mode</Text>
+            <Text style={styles.cardSubtitle}>Automatic Face Recognition</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.registerCard}
+            onPress={() => router.push('/register')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.iconContainer}>
+              <Ionicons name="person-add-outline" size={64} color="#06A77D" />
+            </View>
+            <Text style={styles.cardTitle}>Register Employee</Text>
+            <Text style={styles.cardSubtitle}>Add New Team Member</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.footer}>
+          <View style={styles.featureItem}>
+            <Ionicons name="shield-checkmark-outline" size={20} color="#666" />
+            <Text style={styles.featureText}>Secure</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.featureItem}>
+            <Ionicons name="flash-outline" size={20} color="#666" />
+            <Text style={styles.featureText}>Fast</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.featureItem}>
+            <Ionicons name="eye-outline" size={20} color="#666" />
+            <Text style={styles.featureText}>Accurate</Text>
           </View>
         </View>
-      </LinearGradient>
+      </View>
     </SafeAreaView>
   );
 }
@@ -83,94 +67,89 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#7B2CBF',
-  },
-  gradient: {
-    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
   content: {
     flex: 1,
-    justifyContent: 'space-between',
     padding: 24,
+    justifyContent: 'space-between',
   },
   header: {
     alignItems: 'center',
     marginTop: 40,
+    marginBottom: 20,
   },
   logo: {
-    width: 200,
-    height: 200,
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginTop: 16,
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  subtitle: {
-    fontSize: 18,
-    color: '#fff',
-    marginTop: 8,
-    opacity: 0.9,
+    width: 180,
+    height: 180,
   },
   buttonContainer: {
+    flex: 1,
     gap: 20,
+    justifyContent: 'center',
+    marginBottom: 40,
   },
-  kioskButton: {
+  kioskCard: {
+    backgroundColor: '#FFF5F0',
     borderRadius: 24,
-    overflow: 'hidden',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  registerButton: {
-    borderRadius: 24,
-    overflow: 'hidden',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  buttonGradient: {
     padding: 32,
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FF6B35',
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  buttonText: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginTop: 12,
+  registerCard: {
+    backgroundColor: '#F0FFF9',
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#06A77D',
+    shadowColor: '#06A77D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  buttonSubtext: {
-    fontSize: 16,
-    color: '#fff',
-    opacity: 0.9,
-    marginTop: 4,
+  iconContainer: {
+    marginBottom: 16,
+  },
+  cardTitle: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 8,
+  },
+  cardSubtitle: {
+    fontSize: 15,
+    color: '#666',
+    textAlign: 'center',
   },
   footer: {
-    marginBottom: 20,
-  },
-  featureRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    paddingVertical: 16,
+    backgroundColor: '#F8F8F8',
     borderRadius: 16,
-    padding: 20,
   },
   featureItem: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
   featureText: {
-    fontSize: 14,
-    color: '#fff',
+    fontSize: 13,
+    color: '#666',
     fontWeight: '600',
+  },
+  divider: {
+    width: 1,
+    height: 24,
+    backgroundColor: '#DDD',
   },
 });

@@ -16,7 +16,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { LinearGradient } from 'expo-linear-gradient';
 
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -90,7 +89,7 @@ export default function Register() {
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert('Success', 'Employee registered successfully with face recognition!', [
+        Alert.alert('Success', 'Employee registered successfully!', [
           {
             text: 'OK',
             onPress: () => router.back(),
@@ -115,37 +114,29 @@ export default function Register() {
           style={styles.camera}
           facing="front"
         >
-          <View style={styles.cameraOverlay}>
-            <LinearGradient
-              colors={['rgba(123, 44, 191, 0.7)', 'transparent', 'rgba(123, 44, 191, 0.7)']}
-              style={styles.overlayGradient}
-            >
-              <View style={styles.cameraHeader}>
-                <TouchableOpacity
-                  style={styles.closeButton}
-                  onPress={() => setShowCamera(false)}
-                >
-                  <Ionicons name="close" size={32} color="#fff" />
-                </TouchableOpacity>
-              </View>
+          <SafeAreaView style={styles.cameraOverlay}>
+            <View style={styles.cameraHeader}>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowCamera(false)}
+              >
+                <Ionicons name="close" size={32} color="#1A1A1A" />
+              </TouchableOpacity>
+            </View>
 
-              <View style={styles.faceFrameWrapper}>
-                <View style={styles.faceFrame} />
-                <Text style={styles.cameraInstruction}>Position face in the frame</Text>
-              </View>
+            <View style={styles.faceFrameWrapper}>
+              <View style={styles.faceFrame} />
+              <Text style={styles.cameraInstruction}>Position your face in the frame</Text>
+            </View>
 
-              <View style={styles.cameraFooter}>
-                <TouchableOpacity style={styles.captureButton} onPress={takePicture}>
-                  <LinearGradient
-                    colors={['#FF6B35', '#FF8C42']}
-                    style={styles.captureButtonGradient}
-                  >
-                    <Ionicons name="camera" size={32} color="#fff" />
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          </View>
+            <View style={styles.cameraFooter}>
+              <TouchableOpacity style={styles.captureButton} onPress={takePicture}>
+                <View style={styles.captureButtonInner}>
+                  <Ionicons name="camera" size={32} color="#fff" />
+                </View>
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
         </CameraView>
       </View>
     );
@@ -153,119 +144,111 @@ export default function Register() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient colors={['#7B2CBF', '#9D4EDD', '#C77DFF']} style={styles.gradient}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
-        >
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color="#fff" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Register Employee</Text>
-            <View style={styles.placeholder} />
-          </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Register Employee</Text>
+          <View style={styles.placeholder} />
+        </View>
 
-          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-            <View style={styles.form}>
-              <View style={styles.photoSection}>
-                {facePhoto ? (
-                  <View>
-                    <Image source={{ uri: facePhoto }} style={styles.photoPreview} />
-                    <TouchableOpacity
-                      style={styles.retakeButton}
-                      onPress={handleCapturePhoto}
-                    >
-                      <Ionicons name="camera" size={20} color="#FF6B35" />
-                      <Text style={styles.retakeText}>Retake Photo</Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
+        <ScrollView 
+          style={styles.scrollView} 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.form}>
+            <View style={styles.photoSection}>
+              {facePhoto ? (
+                <View>
+                  <Image source={{ uri: facePhoto }} style={styles.photoPreview} />
                   <TouchableOpacity
-                    style={styles.photoPlaceholder}
+                    style={styles.retakeButton}
                     onPress={handleCapturePhoto}
                   >
-                    <LinearGradient
-                      colors={['#FF6B35', '#FF8C42']}
-                      style={styles.photoPlaceholderGradient}
-                    >
-                      <Ionicons name="camera" size={48} color="#fff" />
-                      <Text style={styles.photoPlaceholderText}>Capture Face Photo</Text>
-                    </LinearGradient>
+                    <Ionicons name="camera" size={20} color="#FF6B35" />
+                    <Text style={styles.retakeText}>Retake Photo</Text>
                   </TouchableOpacity>
-                )}
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Full Name *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter full name"
-                  placeholderTextColor="#999"
-                  value={formData.name}
-                  onChangeText={(text) => setFormData({ ...formData, name: text })}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Email *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter email address"
-                  placeholderTextColor="#999"
-                  value={formData.email}
-                  onChangeText={(text) => setFormData({ ...formData, email: text })}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Phone *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter phone number"
-                  placeholderTextColor="#999"
-                  value={formData.phone}
-                  onChangeText={(text) => setFormData({ ...formData, phone: text })}
-                  keyboardType="phone-pad"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Department *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter department"
-                  placeholderTextColor="#999"
-                  value={formData.department}
-                  onChangeText={(text) => setFormData({ ...formData, department: text })}
-                />
-              </View>
-
-              <TouchableOpacity
-                style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-                onPress={handleSubmit}
-                disabled={loading}
-              >
-                <LinearGradient
-                  colors={['#06A77D', '#0FB8A8', '#1CD4C6']}
-                  style={styles.submitButtonGradient}
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.photoPlaceholder}
+                  onPress={handleCapturePhoto}
                 >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <>
-                      <Ionicons name="checkmark-circle" size={24} color="#fff" />
-                      <Text style={styles.submitButtonText}>Register Employee</Text>
-                    </>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
+                  <Ionicons name="camera-outline" size={64} color="#FF6B35" />
+                  <Text style={styles.photoPlaceholderText}>Capture Face Photo</Text>
+                </TouchableOpacity>
+              )}
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </LinearGradient>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Full Name *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter full name"
+                placeholderTextColor="#999"
+                value={formData.name}
+                onChangeText={(text) => setFormData({ ...formData, name: text })}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Email *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter email address"
+                placeholderTextColor="#999"
+                value={formData.email}
+                onChangeText={(text) => setFormData({ ...formData, email: text })}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Phone *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter phone number"
+                placeholderTextColor="#999"
+                value={formData.phone}
+                onChangeText={(text) => setFormData({ ...formData, phone: text })}
+                keyboardType="phone-pad"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Department *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter department"
+                placeholderTextColor="#999"
+                value={formData.department}
+                onChangeText={(text) => setFormData({ ...formData, department: text })}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-circle" size={24} color="#fff" />
+                  <Text style={styles.submitButtonText}>Register Employee</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -273,10 +256,7 @@ export default function Register() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#7B2CBF',
-  },
-  gradient: {
-    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
   keyboardView: {
     flex: 1,
@@ -286,15 +266,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: '#FFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
   backButton: {
     padding: 8,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '700',
+    color: '#1A1A1A',
   },
   placeholder: {
     width: 40,
@@ -302,36 +284,37 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: 40,
+  },
   form: {
-    padding: 16,
+    padding: 20,
   },
   photoSection: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 32,
   },
   photoPlaceholder: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    overflow: 'hidden',
-    borderWidth: 3,
-    borderColor: '#FF8C42',
-  },
-  photoPlaceholderGradient: {
-    flex: 1,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: '#FFF5F0',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#FF6B35',
+    borderStyle: 'dashed',
   },
   photoPlaceholderText: {
-    marginTop: 8,
-    color: '#fff',
-    fontSize: 14,
+    marginTop: 12,
+    color: '#FF6B35',
+    fontSize: 15,
     fontWeight: '600',
   },
   photoPreview: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
     borderWidth: 4,
     borderColor: '#06A77D',
   },
@@ -339,59 +322,59 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 12,
+    marginTop: 16,
     gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: '#FFF',
     padding: 12,
     borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#FF6B35',
   },
   retakeText: {
     color: '#FF6B35',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   label: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#fff',
+    color: '#1A1A1A',
     marginBottom: 8,
   },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderWidth: 2,
-    borderColor: '#9D4EDD',
+    backgroundColor: '#F8F8F8',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
     fontSize: 16,
-    color: '#333',
+    color: '#1A1A1A',
   },
   submitButton: {
+    backgroundColor: '#06A77D',
     borderRadius: 12,
-    overflow: 'hidden',
-    marginTop: 8,
+    padding: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    shadowColor: '#06A77D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
     elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
   },
   submitButtonDisabled: {
     opacity: 0.6,
   },
-  submitButtonGradient: {
-    flexDirection: 'row',
-    padding: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
   submitButtonText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   cameraContainer: {
     flex: 1,
@@ -401,21 +384,23 @@ const styles = StyleSheet.create({
   },
   cameraOverlay: {
     flex: 1,
-  },
-  overlayGradient: {
-    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   cameraHeader: {
     padding: 20,
-    paddingTop: 60,
+    alignItems: 'flex-end',
   },
   closeButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,107,53,0.8)',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#FFF',
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
   faceFrameWrapper: {
     flex: 1,
@@ -434,25 +419,30 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
-    marginTop: 24,
+    marginTop: 32,
     textShadowColor: 'rgba(0,0,0,0.75)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
   cameraFooter: {
-    paddingBottom: 40,
+    paddingBottom: 50,
     alignItems: 'center',
   },
   captureButton: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    overflow: 'hidden',
-    borderWidth: 4,
-    borderColor: '#fff',
+    backgroundColor: '#FFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 5,
+    borderColor: '#FF6B35',
   },
-  captureButtonGradient: {
-    flex: 1,
+  captureButtonInner: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FF6B35',
     justifyContent: 'center',
     alignItems: 'center',
   },
